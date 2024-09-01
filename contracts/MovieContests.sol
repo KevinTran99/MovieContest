@@ -24,6 +24,8 @@ contract MovieContest {
 
     mapping (address => mapping (string => Contest)) internal contests;
     mapping (address => mapping (string => mapping (address => bool))) internal hasVoted;
+    mapping (address => mapping (string => mapping (string => bool))) contestMovies;
+
 
     constructor() {
         owner = msg.sender;
@@ -35,8 +37,13 @@ contract MovieContest {
     }
 
     modifier inStatus(address _contestCreator, string memory _contest, VotingStatus _status) {
-    require(contests[_contestCreator][_contest].votingStatus == _status, "Invalid voting status, this action cannot be performed!");
-    _;
+        require(contests[_contestCreator][_contest].votingStatus == _status, "Invalid voting status, this action cannot be performed!");
+        _;
+    }
+
+    modifier movieExist(address _contestCreator, string memory _contest, string memory _movieTitle) {
+        require(contestMovies[_contestCreator][_contest][_movieTitle], "This movie title does not exist in this contest.");
+        _;
     }
 
     function addContest(string memory _contestName) external {
@@ -48,6 +55,7 @@ contract MovieContest {
 
     function addMovie(address _contestCreator, string memory _contest, string memory _movieTitle) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, VotingStatus.notStarted) {
         contests[_contestCreator][_contest].movies.push(Movie(_movieTitle, 0));
+        contestMovies[_contestCreator][_contest][_movieTitle] = true;
     }
 
     function getMovies(address _contestCreator, string memory _contest) external contestExist(_contestCreator, _contest) view returns(Movie[] memory) {
@@ -63,20 +71,19 @@ contract MovieContest {
         contests[_contestCreator][_contest].votingStatus = VotingStatus.Ongoing;
     }
 
-    function voteMovie(address _contestCreator, string memory _contest, string memory _movie) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, VotingStatus.Ongoing) {
+    function voteMovie(address _contestCreator, string memory _contest, string memory _movieTitle) external contestExist(_contestCreator, _contest) movieExist(_contestCreator, _contest, _movieTitle) inStatus(_contestCreator, _contest, VotingStatus.Ongoing) {
         if (hasVoted[_contestCreator][_contest][msg.sender]) {
             revert AlreadyVoted(msg.sender, hasVoted[_contestCreator][_contest][msg.sender]);
         }
 
-        Movie[] storage contestMovies = contests[_contestCreator][_contest].movies;
+        Movie[] storage movies = contests[_contestCreator][_contest].movies;
 
-        for(uint i = 0; i < contestMovies.length; ++i) {
-            if (keccak256(bytes(contestMovies[i].title)) == keccak256(bytes(_movie))) {
-                contestMovies[i].voteCount += 1;
+        for(uint i = 0; i < movies.length; ++i) {
+            if (keccak256(bytes(movies[i].title)) == keccak256(bytes(_movieTitle))) {
+                movies[i].voteCount += 1;
                 hasVoted[_contestCreator][_contest][msg.sender] = true;
                 break;
             }
         }
-
     }
 }
