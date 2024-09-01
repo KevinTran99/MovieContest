@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 contract MovieContest {
     error NotOwner(address caller);
+    error AlreadyVoted(address, bool);
 
     enum VotingStatus { notStarted, Ongoing, Finished }
 
@@ -22,6 +23,7 @@ contract MovieContest {
     address internal owner;
 
     mapping (address => mapping (string => Contest)) internal contests;
+    mapping (address => mapping (string => mapping (address => bool))) internal hasVoted;
 
     constructor() {
         owner = msg.sender;
@@ -59,5 +61,22 @@ contract MovieContest {
 
         contests[_contestCreator][_contest].deadline = block.timestamp + _duration;
         contests[_contestCreator][_contest].votingStatus = VotingStatus.Ongoing;
+    }
+
+    function voteMovie(address _contestCreator, string memory _contest, string memory _movie) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, VotingStatus.Ongoing) {
+        if (hasVoted[_contestCreator][_contest][msg.sender]) {
+            revert AlreadyVoted(msg.sender, hasVoted[_contestCreator][_contest][msg.sender]);
+        }
+
+        Movie[] storage contestMovies = contests[_contestCreator][_contest].movies;
+
+        for(uint i = 0; i < contestMovies.length; ++i) {
+            if (keccak256(bytes(contestMovies[i].title)) == keccak256(bytes(_movie))) {
+                contestMovies[i].voteCount += 1;
+                hasVoted[_contestCreator][_contest][msg.sender] = true;
+                break;
+            }
+        }
+
     }
 }
