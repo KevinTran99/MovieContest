@@ -51,4 +51,13 @@ contract MovieContest {
     function getMovies(address _contestCreator, string memory _contest) external contestExist(_contestCreator, _contest) view returns(Movie[] memory) {
         return contests[_contestCreator][_contest].movies;
     }
+
+    function startContest(address _contestCreator, string memory _contest, uint _duration) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, VotingStatus.notStarted) {
+        if (msg.sender != _contestCreator) {
+            revert NotOwner(msg.sender);
+        }
+
+        contests[_contestCreator][_contest].deadline = block.timestamp + _duration;
+        contests[_contestCreator][_contest].votingStatus = VotingStatus.Ongoing;
+    }
 }
