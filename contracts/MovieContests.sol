@@ -20,7 +20,7 @@ contract MovieContest {
         ContestStatus contestStatus;
     }
 
-    address internal owner;
+    address public owner;
 
     mapping (address => mapping (string => Contest)) internal contests;
     mapping (address => mapping (string => mapping (address => bool))) internal hasVoted;
