@@ -67,6 +67,10 @@ contract MovieContest {
             revert NotOwner(msg.sender);
         }
 
+        if (contests[_contestCreator][_contest].movies.length < 2) {
+            revert ("This contest needs at least two movies to start.");
+        }
+
         contests[_contestCreator][_contest].deadline = block.timestamp + _duration;
         contests[_contestCreator][_contest].votingStatus = VotingStatus.Ongoing;
     }
