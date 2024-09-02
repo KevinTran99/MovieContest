@@ -5,7 +5,7 @@ contract MovieContest {
     error NotOwner(address caller);
     error AlreadyVoted(address, bool);
 
-    enum VotingStatus { notStarted, Ongoing, Finished }
+    enum ContestStatus { notStarted, Ongoing, Finished }
 
     struct Movie {
         string title;
@@ -17,7 +17,7 @@ contract MovieContest {
         uint deadline;
         string winner;
         bool exist;
-        VotingStatus votingStatus;
+        ContestStatus contestStatus;
     }
 
     address internal owner;
@@ -38,8 +38,8 @@ contract MovieContest {
         _;
     }
 
-    modifier inStatus(address _contestCreator, string memory _contest, VotingStatus _status) {
-        require(contests[_contestCreator][_contest].votingStatus == _status, "Invalid voting status, this action cannot be performed!");
+    modifier inStatus(address _contestCreator, string memory _contest, ContestStatus _status) {
+        require(contests[_contestCreator][_contest].contestStatus == _status, "Invalid voting status, this action cannot be performed!");
         _;
     }
 
@@ -52,10 +52,10 @@ contract MovieContest {
         require(!contests[msg.sender][_contestName].exist, "This address have already added a contest with the same name.");
 
         contests[msg.sender][_contestName].exist = true;
-        contests[msg.sender][_contestName].votingStatus = VotingStatus.notStarted;
+        contests[msg.sender][_contestName].contestStatus = ContestStatus.notStarted;
     }
 
-    function addMovie(address _contestCreator, string memory _contest, string memory _movieTitle) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, VotingStatus.notStarted) {
+    function addMovie(address _contestCreator, string memory _contest, string memory _movieTitle) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, ContestStatus.notStarted) {
         contests[_contestCreator][_contest].movies.push(Movie(_movieTitle, 0));
         contestMovies[_contestCreator][_contest][_movieTitle] = true;
     }
@@ -64,7 +64,7 @@ contract MovieContest {
         return contests[_contestCreator][_contest].movies;
     }
 
-    function startContest(address _contestCreator, string memory _contest, uint _duration) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, VotingStatus.notStarted) {
+    function startContest(address _contestCreator, string memory _contest, uint _duration) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, ContestStatus.notStarted) {
         if (msg.sender != _contestCreator) {
             revert NotOwner(msg.sender);
         }
@@ -74,10 +74,10 @@ contract MovieContest {
         }
 
         contests[_contestCreator][_contest].deadline = block.timestamp + _duration;
-        contests[_contestCreator][_contest].votingStatus = VotingStatus.Ongoing;
+        contests[_contestCreator][_contest].contestStatus = ContestStatus.Ongoing;
     }
 
-    function voteMovie(address _contestCreator, string memory _contest, string memory _movieTitle) external contestExist(_contestCreator, _contest) movieExist(_contestCreator, _contest, _movieTitle) inStatus(_contestCreator, _contest, VotingStatus.Ongoing) {
+    function voteMovie(address _contestCreator, string memory _contest, string memory _movieTitle) external contestExist(_contestCreator, _contest) movieExist(_contestCreator, _contest, _movieTitle) inStatus(_contestCreator, _contest, ContestStatus.Ongoing) {
         if (hasVoted[_contestCreator][_contest][msg.sender]) {
             revert AlreadyVoted(msg.sender, hasVoted[_contestCreator][_contest][msg.sender]);
         }
@@ -97,14 +97,14 @@ contract MovieContest {
         }
     }
 
-    function endContest(address _contestCreator, string memory _contest) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, VotingStatus.Ongoing) {
+    function endContest(address _contestCreator, string memory _contest) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, ContestStatus.Ongoing) {
         if (msg.sender != _contestCreator) {
             revert NotOwner(msg.sender);
         }
 
-        //if(block.timestamp < contests[_contestCreator][_contest].deadline) {
-        //    revert ("The deadline for this contest have not passed yet.");
-        //}
+        if(block.timestamp < contests[_contestCreator][_contest].deadline) {
+            revert ("The deadline for this contest have not passed yet.");
+        }
 
         string memory _winnerTitle;
         uint highestVoteCount;
@@ -127,12 +127,12 @@ contract MovieContest {
         }
 
         contests[_contestCreator][_contest].winner = _winnerTitle;
-        contests[_contestCreator][_contest].votingStatus = VotingStatus.Finished;
+        contests[_contestCreator][_contest].contestStatus = ContestStatus.Finished;
 
         emit ContestEnded(_contestCreator, _contest, _winnerTitle);
     }
 
-    function getWinner(address _contestCreator, string memory _contest) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, VotingStatus.Finished) view returns(string memory) {
+    function getWinner(address _contestCreator, string memory _contest) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, ContestStatus.Finished) view returns(string memory) {
         return contests[_contestCreator][_contest].winner;
     }
 }
