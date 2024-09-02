@@ -76,6 +76,10 @@ contract MovieContest {
             revert AlreadyVoted(msg.sender, hasVoted[_contestCreator][_contest][msg.sender]);
         }
 
+        if (block.timestamp >= contests[_contestCreator][_contest].deadline) {
+            revert("Voting period has ended");
+        }
+
         Movie[] storage movies = contests[_contestCreator][_contest].movies;
 
         for(uint i = 0; i < movies.length; ++i) {
