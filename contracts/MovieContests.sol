@@ -31,6 +31,7 @@ contract MovieContest {
         owner = msg.sender;
     }
 
+    event ContestStarted(address indexed contestCreator, string contest);
     event ContestEnded(address indexed contestCreator, string contest, string winner);
 
     modifier contestExist(address _contestCreator, string memory _contest) {
@@ -83,6 +84,8 @@ contract MovieContest {
 
         contests[_contestCreator][_contest].deadline = block.timestamp + _duration;
         contests[_contestCreator][_contest].contestStatus = ContestStatus.Ongoing;
+
+        emit ContestStarted(_contestCreator, _contest);
     }
 
     function voteMovie(address _contestCreator, string memory _contest, string memory _movieTitle) external contestExist(_contestCreator, _contest) movieExist(_contestCreator, _contest, _movieTitle) inStatus(_contestCreator, _contest, ContestStatus.Ongoing) {
