@@ -31,6 +31,8 @@ contract MovieContest {
         owner = msg.sender;
     }
 
+    event ContestEnded(address indexed contestCreator, string contest, string winner);
+
     modifier contestExist(address _contestCreator, string memory _contest) {
         require(contests[_contestCreator][_contest].exist, "This contest does not exist");
         _;
@@ -100,9 +102,9 @@ contract MovieContest {
             revert NotOwner(msg.sender);
         }
 
-        if(block.timestamp < contests[_contestCreator][_contest].deadline) {
-            revert ("The deadline for this contest have not passed yet.");
-        }
+        //if(block.timestamp < contests[_contestCreator][_contest].deadline) {
+        //    revert ("The deadline for this contest have not passed yet.");
+        //}
 
         string memory _winnerTitle;
         uint highestVoteCount;
@@ -126,6 +128,8 @@ contract MovieContest {
 
         contests[_contestCreator][_contest].winner = _winnerTitle;
         contests[_contestCreator][_contest].votingStatus = VotingStatus.Finished;
+
+        emit ContestEnded(_contestCreator, _contest, _winnerTitle);
     }
 
     function getWinner(address _contestCreator, string memory _contest) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, VotingStatus.Finished) view returns(string memory) {
