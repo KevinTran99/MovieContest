@@ -90,4 +90,41 @@ contract MovieContest {
             }
         }
     }
+
+    function endContest(address _contestCreator, string memory _contest) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, VotingStatus.Ongoing) {
+        if (msg.sender != _contestCreator) {
+            revert NotOwner(msg.sender);
+        }
+
+        if(block.timestamp < contests[_contestCreator][_contest].deadline) {
+            revert ("The deadline for this contest have not passed yet.");
+        }
+
+        string memory _winnerTitle;
+        uint highestVoteCount;
+        bool tie;
+
+        Movie[] storage movies = contests[_contestCreator][_contest].movies;
+
+        for(uint i = 0; i < movies.length; ++i) {
+            if (movies[i].voteCount > highestVoteCount) {
+                highestVoteCount = movies[i].voteCount;
+                _winnerTitle = movies[i].title;
+                tie = false;
+            } else if (movies[i].voteCount == highestVoteCount) {
+                tie = true;
+            }
+        }
+
+        if (tie) {
+            _winnerTitle = "The result was a tie";
+        }
+
+        contests[_contestCreator][_contest].winner = _winnerTitle;
+        contests[_contestCreator][_contest].votingStatus = VotingStatus.Finished;
+    }
+
+    function getWinner(address _contestCreator, string memory _contest) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, VotingStatus.Finished) view returns(string memory) {
+        return contests[_contestCreator][_contest].winner;
+    }
 }
