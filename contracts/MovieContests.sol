@@ -22,9 +22,9 @@ contract MovieContest {
 
     address public owner;
 
-    mapping (address => mapping (string => Contest)) internal contests;
-    mapping (address => mapping (string => mapping (address => bool))) internal hasVoted;
-    mapping (address => mapping (string => mapping (string => bool))) contestMovies;
+    mapping (address => mapping (string => Contest)) public contests;
+    mapping (address => mapping (string => mapping (address => bool))) public hasVoted;
+    mapping (address => mapping (string => mapping (string => bool))) public contestMovies;
 
 
     constructor() {
@@ -35,12 +35,12 @@ contract MovieContest {
     event ContestEnded(address indexed contestCreator, string contest, string winner);
 
     modifier contestExist(address _contestCreator, string memory _contest) {
-        require(contests[_contestCreator][_contest].exist, "This contest does not exist");
+        require(contests[_contestCreator][_contest].exist, "This contest does not exist.");
         _;
     }
 
     modifier inStatus(address _contestCreator, string memory _contest, ContestStatus _status) {
-        require(contests[_contestCreator][_contest].contestStatus == _status, "Invalid contest status, this action cannot be performed!");
+        require(contests[_contestCreator][_contest].contestStatus == _status, "Invalid contest status, this action cannot be performed.");
         _;
     }
 
@@ -68,7 +68,7 @@ contract MovieContest {
         if (msg.sender != _contestCreator) {
             revert NotOwner(msg.sender);
         }
-        
+
         contests[_contestCreator][_contest].movies.push(Movie(_movieTitle, 0));
         contestMovies[_contestCreator][_contest][_movieTitle] = true;
     }
