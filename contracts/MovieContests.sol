@@ -48,6 +48,14 @@ contract MovieContest {
         _;
     }
 
+    fallback() external {
+        revert("Fallback function. Call a function that exists.");
+    }
+
+    receive() external payable {
+        revert("This contract does not accept payments.");
+    }
+
     function addContest(string memory _contestName) external {
         require(!contests[msg.sender][_contestName].exist, "This address have already added a contest with the same name.");
 
