@@ -65,6 +65,10 @@ contract MovieContest {
     }
 
     function addMovie(address _contestCreator, string memory _contest, string memory _movieTitle) external contestExist(_contestCreator, _contest) inStatus(_contestCreator, _contest, ContestStatus.notStarted) {
+        if (msg.sender != _contestCreator) {
+            revert NotOwner(msg.sender);
+        }
+        
         contests[_contestCreator][_contest].movies.push(Movie(_movieTitle, 0));
         contestMovies[_contestCreator][_contest][_movieTitle] = true;
     }
