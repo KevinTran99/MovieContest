@@ -39,7 +39,7 @@ contract MovieContest {
     }
 
     modifier inStatus(address _contestCreator, string memory _contest, ContestStatus _status) {
-        require(contests[_contestCreator][_contest].contestStatus == _status, "Invalid voting status, this action cannot be performed!");
+        require(contests[_contestCreator][_contest].contestStatus == _status, "Invalid contest status, this action cannot be performed!");
         _;
     }
 
