@@ -129,6 +129,8 @@ contract MovieContest {
         contests[_contestCreator][_contest].winner = _winnerTitle;
         contests[_contestCreator][_contest].contestStatus = ContestStatus.Finished;
 
+        assert(contests[_contestCreator][_contest].contestStatus == ContestStatus.Finished);
+
         emit ContestEnded(_contestCreator, _contest, _winnerTitle);
     }
 
