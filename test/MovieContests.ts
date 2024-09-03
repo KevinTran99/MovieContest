@@ -131,7 +131,7 @@ describe('MovieContests', function () {
       expect(movies[0].voteCount).to.equal(0);
     });
 
-    it('Should set the movie in the contestMovies mapping to true when a movie is added', async function () {
+    it('Should set the movie in the contestMovies mapping to true when a movie has been added', async function () {
       const { movieContests, owner } = await deployMovieContestsFixture();
 
       await movieContests.addContest('Best Movie 2009');
@@ -184,6 +184,325 @@ describe('MovieContests', function () {
       await expect(
         movieContests.getMovies(owner.address, 'Best Movie 2009')
       ).to.be.revertedWith('This contest does not exist.');
+    });
+  });
+
+  describe('startContest function', function () {
+    it('Should revert if contest does not exist', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await expect(
+        movieContests.startContest(owner.address, 'Best Movie 2009', 1)
+      ).to.be.revertedWith('This contest does not exist.');
+    });
+
+    it('Should revert if invalid contest status', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 1);
+
+      await expect(
+        movieContests.startContest(owner.address, 'Best Movie 2009', 1)
+      ).to.be.revertedWith(
+        'Invalid contest status, this action cannot be performed.'
+      );
+    });
+
+    it('Should revert if a non-contest creator tries to start a contest they did not create', async function () {
+      const { movieContests, owner, notOwner } =
+        await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+
+      await expect(
+        movieContests
+          .connect(notOwner)
+          .startContest(owner.address, 'Best Movie 2009', 1)
+      )
+        .to.be.revertedWithCustomError(movieContests, 'NotOwner')
+        .withArgs(notOwner.address);
+    });
+
+    it('Should revert if contest is not started with at least 2 movies', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+
+      await expect(
+        movieContests.startContest(owner.address, 'Best Movie 2009', 1)
+      ).to.be.revertedWith('This contest needs at least two movies to start.');
+    });
+
+    it('Should start a contest with the correct deadline', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 3600);
+
+      const expectedDeadline =
+        ((await hre.ethers.provider.getBlock('latest'))?.timestamp ?? 0) + 3600;
+
+      expect(
+        (await movieContests.contests(owner.address, 'Best Movie 2009'))
+          .deadline
+      ).to.equal(expectedDeadline);
+    });
+
+    it('Should set contestStatus to Ongoing when a contest has started', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 3600);
+
+      expect(
+        (await movieContests.contests(owner.address, 'Best Movie 2009'))
+          .contestStatus
+      ).to.equal(1);
+    });
+
+    it('Should emit ContestStarted event when a contest has started', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+
+      await expect(
+        movieContests.startContest(owner.address, 'Best Movie 2009', 3600)
+      )
+        .to.emit(movieContests, 'ContestStarted')
+        .withArgs(owner.address, 'Best Movie 2009');
+    });
+  });
+
+  describe('voteMovie function', function () {
+    it('Should revert if contest does not exist', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await expect(
+        movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar')
+      ).to.be.revertedWith('This contest does not exist.');
+    });
+
+    it('Should revert if movie does not exist', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+
+      await expect(
+        movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar')
+      ).to.be.revertedWith('This movie title does not exist in this contest.');
+    });
+
+    it('Should revert if invalid contest status', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+
+      await expect(
+        movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar')
+      ).to.be.revertedWith(
+        'Invalid contest status, this action cannot be performed.'
+      );
+    });
+
+    it('Should revert if address has already voted', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 3600);
+      await movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar');
+
+      const hasVoted = await movieContests.hasVoted(
+        owner.address,
+        'Best Movie 2009',
+        owner.address
+      );
+
+      await expect(
+        movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar')
+      )
+        .to.be.revertedWithCustomError(movieContests, 'AlreadyVoted')
+        .withArgs(owner.address, hasVoted);
+    });
+
+    it('Should revert if deadline has passed', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 1);
+
+      await expect(
+        movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar')
+      ).to.be.revertedWith('Voting period has ended.');
+    });
+
+    it('Should increase the voteCount for voted movie by 1', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 3600);
+
+      expect(
+        (await movieContests.getMovies(owner.address, 'Best Movie 2009'))[0]
+          .voteCount
+      ).to.equal(0);
+
+      await movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar');
+
+      expect(
+        (await movieContests.getMovies(owner.address, 'Best Movie 2009'))[0]
+          .voteCount
+      ).to.equal(1);
+    });
+
+    it('Should set the address in the hasVoted mapping to true if voting is successful', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 3600);
+      await movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar');
+
+      expect(
+        await movieContests.hasVoted(
+          owner.address,
+          'Best Movie 2009',
+          owner.address
+        )
+      ).to.be.true;
+    });
+  });
+
+  describe('endContest', function () {
+    it('Should revert if contest does not exist', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await expect(
+        movieContests.endContest(owner.address, 'Best Movie 2009')
+      ).to.be.revertedWith('This contest does not exist.');
+    });
+
+    it('Should revert if invalid contest status', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+
+      await expect(
+        movieContests.endContest(owner.address, 'Best Movie 2009')
+      ).to.be.revertedWith(
+        'Invalid contest status, this action cannot be performed.'
+      );
+    });
+
+    it('Should revert if non-contest creator tries to end a contest they did not create', async function () {
+      const { movieContests, owner, notOwner } =
+        await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 3600);
+
+      await expect(
+        movieContests
+          .connect(notOwner)
+          .endContest(owner.address, 'Best Movie 2009')
+      )
+        .to.be.revertedWithCustomError(movieContests, 'NotOwner')
+        .withArgs(notOwner.address);
+    });
+
+    it('Should revert if deadline for contest has not passed yet', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 3600);
+
+      await expect(
+        movieContests.endContest(owner.address, 'Best Movie 2009')
+      ).to.be.revertedWith(
+        'The deadline for this contest have not passed yet.'
+      );
+    });
+
+    it('Should set contest winner to tie if it became a tie between the movies', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 1);
+      await movieContests.endContest(owner.address, 'Best Movie 2009');
+
+      expect(
+        (await movieContests.contests(owner.address, 'Best Movie 2009')).winner
+      ).to.equal('The result was a tie');
+    });
+
+    it('Should set contest winner to the movie with the most votes', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 2);
+      await movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.endContest(owner.address, 'Best Movie 2009');
+
+      expect(
+        (await movieContests.contests(owner.address, 'Best Movie 2009')).winner
+      ).to.equal('Avatar');
+    });
+
+    it('Should set contestStatus to Finished when a contest has ended', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 2);
+      await movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.endContest(owner.address, 'Best Movie 2009');
+
+      expect(
+        (await movieContests.contests(owner.address, 'Best Movie 2009'))
+          .contestStatus
+      ).to.equal(2);
+    });
+
+    it('Should emit ContestEnded event when a contest has ended', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 2);
+      await movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar');
+
+      await expect(movieContests.endContest(owner.address, 'Best Movie 2009'))
+        .to.emit(movieContests, 'ContestEnded')
+        .withArgs(owner.address, 'Best Movie 2009', 'Avatar');
     });
   });
 });
