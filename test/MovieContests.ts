@@ -392,7 +392,7 @@ describe('MovieContests', function () {
     });
   });
 
-  describe('endContest', function () {
+  describe('endContest function', function () {
     it('Should revert if contest does not exist', async function () {
       const { movieContests, owner } = await deployMovieContestsFixture();
 
@@ -503,6 +503,83 @@ describe('MovieContests', function () {
       await expect(movieContests.endContest(owner.address, 'Best Movie 2009'))
         .to.emit(movieContests, 'ContestEnded')
         .withArgs(owner.address, 'Best Movie 2009', 'Avatar');
+    });
+  });
+
+  describe('getWinner function', function () {
+    it('Should revert if contest does not exist', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await expect(
+        movieContests.getWinner(owner.address, 'Best Movie 2009')
+      ).to.be.revertedWith('This contest does not exist.');
+    });
+
+    it('Should revert if invalid contest status', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+
+      await expect(
+        movieContests.getWinner(owner.address, 'Best Movie 2009')
+      ).to.be.revertedWith(
+        'Invalid contest status, this action cannot be performed.'
+      );
+    });
+
+    it('Should return the correct winner', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 2);
+      await movieContests.voteMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.endContest(owner.address, 'Best Movie 2009');
+
+      expect(
+        await movieContests.getWinner(owner.address, 'Best Movie 2009')
+      ).to.equal('Avatar');
+    });
+
+    it('Should return tie message if it became a tie between the movies', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await movieContests.addContest('Best Movie 2009');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Avatar');
+      await movieContests.addMovie(owner.address, 'Best Movie 2009', 'Up');
+      await movieContests.startContest(owner.address, 'Best Movie 2009', 1);
+      await movieContests.endContest(owner.address, 'Best Movie 2009');
+
+      expect(
+        await movieContests.getWinner(owner.address, 'Best Movie 2009')
+      ).to.equal('The result was a tie');
+    });
+  });
+
+  describe('fallback function', function () {
+    it('Should revert with the correct error when fallback is called', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await expect(
+        owner.sendTransaction({
+          to: movieContests.getAddress(),
+          data: '0x12345678',
+        })
+      ).to.be.revertedWith('Fallback function. Call a function that exists.');
+    });
+  });
+
+  describe('receive function', function () {
+    it('Should revert with the correct error when receive is called', async function () {
+      const { movieContests, owner } = await deployMovieContestsFixture();
+
+      await expect(
+        owner.sendTransaction({
+          to: movieContests.getAddress(),
+          value: hre.ethers.parseEther('1.0'),
+        })
+      ).to.be.revertedWith('This contract does not accept payments.');
     });
   });
 });
