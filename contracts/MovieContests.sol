@@ -98,7 +98,7 @@ contract MovieContest {
         }
 
         if (block.timestamp >= contests[_contestCreator][_contest].deadline) {
-            revert("Voting period has ended");
+            revert("Voting period has ended.");
         }
 
         Movie[] storage movies = contests[_contestCreator][_contest].movies;
